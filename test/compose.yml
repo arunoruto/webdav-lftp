@@ -1,0 +1,40 @@
+services:
+  copyparty-server:
+    image: copyparty/min
+    container_name: test-copyparty
+    command: -a "${TEST_USERNAME}:${TEST_PASSWORD}"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://${TEST_USERNAME}:${TEST_PASSWORD}@127.0.0.1:3923/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
+    ports:
+      - "8081:3923"
+    volumes:
+      - ./copyparty.conf:/z/initcfg
+      - ./temp:/sites
+
+  plugin-runner:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    container_name: plugin-copyparty
+    environment:
+      PLUGIN_URL: "http://copyparty-server:3923/"
+      PLUGIN_USERNAME: ${TEST_USERNAME}
+      PLUGIN_PASSWORD: ${TEST_PASSWORD}
+      PLUGIN_SOURCE: "."
+      PLUGIN_TARGET: "/my-site"
+      PLUGIN_VERBOSE: "true"
+      PLUGIN_VERIFY_SSL: "false"
+    working_dir: /data
+    volumes:
+      - ./fixtures:/data
+    depends_on:
+      webdav-server:
+        condition: service_healthy
+
+networks:
+  default:
+    name: plugin-test-net
